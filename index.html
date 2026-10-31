@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平安下班術：倉儲現場安全必修課 | 互動培訓島</title>
+    <!-- Tailwind CSS CDN for modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            overflow: hidden;
+            background-color: #0d1117;
+            user-select: none;
+        }
+
+        .font-tech {
+            font-family: 'Chakra Petch', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .island-pin {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        .island-pin:hover {
+            transform: translate(-50%, -110%) scale(1.08);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.9); }
+    </style>
+</head>
+<body class="w-screen h-screen relative text-slate-100">
+
+    <!-- Canvas for Isometric Interactive 3D World -->
+    <canvas id="world-canvas" class="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing"></canvas>
+
+    <!-- Overlay UI Floating Island Markers -->
+    <div id="pins-layer" class="absolute inset-0 pointer-events-none z-10"></div>
+
+    <!-- Header Navigation -->
+    <header class="absolute top-4 left-4 right-4 md:left-6 md:right-6 z-20 flex flex-col md:flex-row items-center justify-between gap-3 pointer-events-none">
+        <div class="glass-panel rounded-2xl px-5 py-3 pointer-events-auto flex items-center justify-between w-full md:w-auto gap-4 shadow-2xl">
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-lg md:text-xl text-white tracking-wide flex items-center gap-2">
+                        平安下班術
+                        <span class="text-[10px] font-tech font-bold px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">3D SAFETY ISLAND</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">倉儲現場安全必修課：點擊動態島探索微縮場景與 SOP</p>
+                </div>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div class="hidden sm:flex flex-col items-end pl-5 border-l border-slate-700/60 min-w-[140px]">
+                <div class="flex items-center justify-between w-full text-xs font-bold mb-1">
+                    <span class="text-slate-400">通關進度</span>
+                    <span id="global-progress-num" class="font-tech text-yellow-400 font-black">0%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                    <div id="global-progress-bar" class="bg-gradient-to-r from-orange-500 to-yellow-400 h-full w-0 transition-all duration-500 rounded-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="glass-panel rounded-2xl p-2 pointer-events-auto flex items-center gap-2 self-end md:self-auto shadow-2xl">
+            <!-- Theme Mode -->
+            <div class="bg-slate-900/80 p-1 rounded-xl flex items-center gap-1 border border-slate-800">
+                <button data-time="day" title="日間班" class="time-btn active p-2 rounded-lg text-xs font-bold bg-yellow-400 text-slate-950 shadow transition">
+                    <i class="fa-solid fa-sun text-amber-600"></i>
+                </button>
+                <button data-time="sunset" title="夕陽班" class="time-btn p-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-sun-plant-wilt text-orange-400"></i>
+                </button>
+                <button data-time="night" title="大夜班 (霓虹)" class="time-btn p-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-moon text-indigo-400"></i>
+                </button>
+            </div>
+
+            <div class="h-6 w-[1px] bg-slate-800 mx-1"></div>
+
+            <!-- Sound Switch -->
+            <button id="sound-btn" title="切換音效" class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-yellow-400 transition">
+                <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+
+            <!-- Certificate Button -->
+            <button id="open-cert-btn" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 text-slate-950 text-xs font-extrabold transition flex items-center gap-2 shadow-lg shadow-orange-500/20 active:scale-95">
+                <i class="fa-solid fa-award text-sm"></i>
+                <span>平安結業證書</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Bottom Filter Navigation -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-4xl px-4">
+        <div class="glass-panel rounded-2xl p-2 pointer-events-auto flex items-center justify-between gap-1.5 overflow-x-auto shadow-2xl">
+            <button data-filter="ALL" class="zone-btn active px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap bg-yellow-400 text-slate-950 transition shadow">
+                全庫區視角
+            </button>
+            <button data-filter="zone-1" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-truck-ramp-box text-orange-400 mr-1"></i> 1.堆高機動線
+            </button>
+            <button data-filter="zone-2" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-bolt text-sky-400 mr-1"></i> 2.電動搬運車
+            </button>
+            <button data-filter="zone-3" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-boxes-stacked text-red-400 mr-1"></i> 3.高架防墜物
+            </button>
+            <button data-filter="zone-4" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-gun text-yellow-400 mr-1"></i> 4.氣動釘槍
+            </button>
+            <button data-filter="zone-5" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-box text-amber-500 mr-1"></i> 5.拆箱鐵釘
+            </button>
+            <button data-filter="zone-6" class="zone-btn px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-slate-300 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-flask-vial text-purple-400 mr-1"></i> 6.化物防漏
+            </button>
+        </div>
+    </div>
+
+    <!-- Side Drawer Modal (SOP & Quiz) -->
+    <div id="side-drawer" class="fixed top-0 right-0 h-full w-full sm:w-[480px] z-30 transition-transform duration-500 translate-x-full pointer-events-auto p-3 sm:p-5 flex flex-col justify-between">
+        <div class="glass-panel h-full w-full rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-700/80">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-800 relative bg-slate-900/50">
+                <button id="close-drawer-btn" class="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition border border-slate-700">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div class="flex items-center gap-2.5 mb-2">
+                    <span id="drawer-zone-tag" class="px-3 py-0.5 rounded-full text-[11px] font-black tracking-wider uppercase text-slate-950 bg-yellow-400">
+                        HIGH RISK ZONE
+                    </span>
+                    <span id="drawer-status-tag" class="text-xs font-bold text-amber-400 flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i> 尚待考驗認證
+                    </span>
+                </div>
+                <h2 id="drawer-title" class="text-2xl font-black text-white tracking-wide">
+                    堆高機動線與盲區安全
+                </h2>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <!-- Hazards -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-orange-500/15 to-yellow-500/10 border border-orange-500/30">
+                    <h3 class="text-xs font-black text-orange-400 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-sm"></i> 現場危害與事故痛點
+                    </h3>
+                    <p id="drawer-hazards" class="text-xs text-slate-300 leading-relaxed font-medium">
+                        盲區撞擊、過彎甩尾翻車、人員闖入行車通道。
+                    </p>
+                </div>
+
+                <!-- SOP -->
+                <div>
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check text-yellow-400"></i> 標準作業流程 (SOP) 必修條款
+                    </h3>
+                    <div id="drawer-sop-list" class="space-y-2.5"></div>
+                </div>
+
+                <!-- Quiz -->
+                <div class="p-5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-3.5 shadow-inner">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="text-xs font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i class="fa-solid fa-gamepad text-sm"></i> 工安實戰微驗收
+                        </span>
+                        <span class="text-[10px] font-tech bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">SINGLE CHOICE</span>
+                    </div>
+                    <p id="quiz-question" class="text-xs font-bold text-slate-200 leading-snug"></p>
+                    <div id="quiz-options" class="space-y-2 pt-1"></div>
+                    <div id="quiz-feedback" class="hidden text-xs p-3 rounded-xl font-bold leading-relaxed"></div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <p class="text-[11px] text-slate-400">安全是回家唯一的路 · 落實 SOP 杜絕職業災害</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificate Modal -->
+    <div id="cert-modal" class="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl relative border border-slate-700 text-center">
+            <button id="close-cert-modal" class="absolute top-6 right-6 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-yellow-300 text-slate-950 mx-auto flex items-center justify-center text-4xl shadow-xl shadow-orange-500/30 mb-4">
+                <i class="fa-solid fa-award"></i>
+            </div>
+
+            <h3 class="text-2xl font-black text-white tracking-wide">平安下班神射手證書</h3>
+            <p class="text-xs text-slate-400 mt-1">倉儲現場安全必修課 結業認證</p>
+
+            <div class="my-6 p-5 rounded-2xl bg-slate-900/90 border border-slate-800 text-left space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2.5">
+                    <span class="text-xs text-slate-400">學員姓名：</span>
+                    <input id="user-cert-name" type="text" value="倉儲第一線英雄" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-2.5 py-1 text-right focus:outline-none focus:border-yellow-400">
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2.5">
+                    <span class="text-xs text-slate-400">工安防線驗收：</span>
+                    <span id="cert-completion-status" class="text-xs font-black text-emerald-400">0 / 6 島嶼全數精通</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400">核心承諾：</span>
+                    <span class="text-xs font-bold text-yellow-400">「快樂上班，平安回家！」</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+                <button id="print-cert-btn" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-print"></i>
+                    <span>列印 / 儲存 PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-24 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // --- Web Audio Synthesizer ---
+        const AudioFX = {
+            ctx: null,
+            muted: false,
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            },
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(850, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            },
+            playSuccess() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.08);
+                osc.frequency.setValueAtTime(783, now + 0.16);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.35);
+            },
+            playFail() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(150, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.3);
+            }
+        };
+
+        document.getElementById('sound-btn').addEventListener('click', () => {
+            AudioFX.muted = !AudioFX.muted;
+            const btn = document.getElementById('sound-btn');
+            btn.innerHTML = AudioFX.muted ? '<i class="fa-solid fa-volume-xmark text-slate-500 text-xs"></i>' : '<i class="fa-solid fa-volume-high text-yellow-400 text-xs"></i>';
+            showToast(AudioFX.muted ? '靜音模式' : '音效已開啟');
+        });
+
+        // --- Data Model for Safety Zones ---
+        const ZONES = [
+            {
+                id: 'zone-1',
+                title: '1. 堆高機動線與視線盲區',
+                color: '#FF5722',
+                isoPos: { x: 0, y: 0 },
+                hazards: '轉角視線死角撞擊、過彎車速過快甩尾翻車、人員闖入行車通道。',
+                sop: [
+                    { title: '路口停看聽鳴笛', desc: '行經通道交叉口、出入口必須減速降至 5km/h 以下並鳴笛。' },
+                    { title: '視線受阻採倒車行駛', desc: '載物高度超過擋貨架影響前瞻視線時，一律採取倒車後退駕駛。' },
+                    { title: '安全警戒區 3 公尺', desc: '堆高機叉舉貨物作業時，方圓 3 公尺內嚴禁任何人員逗留。' }
+                ],
+                quiz: {
+                    q: '當堆高機載運高大棧板、貨物已完全遮蔽駕駛前方視線時，正確的操作方式是？',
+                    options: [
+                        '探出頭邊看邊往前行駛',
+                        '改採取倒車方向後退行駛，並確認後方防護',
+                        '加速衝過盲區路口',
+                        '持續大聲叫喊讓周遭人員避讓'
+                    ],
+                    answer: 1,
+                    explain: '視線受阻時一律採取倒車駕駛，並搭配倒車警報器提示周遭人員！'
+                }
+            },
+            {
+                id: 'zone-2',
+                title: '2. 電動搬運車與板車安全',
+                color: '#00E5FF',
+                isoPos: { x: 220, y: -110 },
+                hazards: '車輪壓傷腳趾、緊急煞車導致托盤貨物甩飛坍塌、控制拉桿夾傷手部。',
+                sop: [
+                    { title: '穿著鋼頭防砸鞋', desc: '進入作業區全程佩戴鋼頭防砸安全鞋，預防車輪壓傷足部。' },
+                    { title: '操作手把保持安全距離', desc: '控制轉向拉桿時手部位於防護托內，防止擠壓牆面。' },
+                    { title: '轉彎前提前減速', desc: '轉彎時必須預留尾部甩尾空間，嚴禁高速陡轉。' }
+                ],
+                quiz: {
+                    q: '操作電動板車行經狹窄通道轉彎時，下列哪一項做法是正確的？',
+                    options: [
+                        '單手操作拉桿並甩尾轉彎',
+                        '提前減速，確認周遭無人員並留出轉彎離隙',
+                        '邊看手機邊控制速度',
+                        '持續按住最高速按鈕轉彎'
+                    ],
+                    answer: 1,
+                    explain: '電動板車車尾轉彎有甩尾夾傷風險，必須提前減速並注意離隙！'
+                }
+            },
+            {
+                id: 'zone-3',
+                title: '3. 高層架防墜物與綑綁',
+                color: '#EF4444',
+                isoPos: { x: -220, y: -110 },
+                hazards: '頂層散裝物品地震落物砸傷、破損棧板上架斷裂跌落、打包膜未裹緊。',
+                sop: [
+                    { title: '進入高架區佩戴安全帽', desc: '進入高層架區必須戴緊安全帽並扣好顎帶。' },
+                    { title: '膠膜包覆 3 層以上', desc: '上高架棧板物料必須使用纏繞膜完整包覆，防止單件脫落。' },
+                    { title: '重物在下輕物在上', desc: '遵循層架限重標示，極重物料嚴禁置於三層以上高位。' }
+                ],
+                quiz: {
+                    q: '高層架物品在安排上架作業前，最重要的防墜檢查項目是？',
+                    options: [
+                        '檢查棧板有無裂痕及膠膜是否紮實包覆',
+                        '確認外箱圖案是否精美',
+                        '直接快速上架無需檢查',
+                        '給棧板刷上潤滑油'
+                    ],
+                    answer: 0,
+                    explain: '破損棧板承重失效與包覆不實是高空落物主因，上架前必須落實 Inspection！'
+                }
+            },
+            {
+                id: 'zone-4',
+                title: '4. 包裝作業與氣動釘槍',
+                color: '#FFB800',
+                isoPos: { x: 220, y: 110 },
+                hazards: '誤扣 trigger 導致鋼釘射入手部、鋼釘反彈傷眼、氣壓管線絆倒。',
+                sop: [
+                    { title: '佩戴防護眼鏡', desc: '操作釘槍作業時必須佩戴抗衝擊安全護目鏡。' },
+                    { title: '離場即拔除氣壓源', desc: '清理卡釘或暫離工作台時，必須先拔掉快速氣壓接頭。' },
+                    { title: '保持 10cm 手部離隙', desc: '壓緊木板時手部離擊發點至少 10 公分以上，嚴禁對人。' }
+                ],
+                quiz: {
+                    q: '當氣動釘槍發生「卡釘」故障需要排除時，應優先執行的第一步是？',
+                    options: [
+                        '拿鐵鎚敲擊槍頭',
+                        '立刻拔除氣壓源快速接頭',
+                        '扣住扳機用手指去拔釘',
+                        '轉交給隔壁同仁操作'
+                    ],
+                    answer: 1,
+                    explain: '排除卡釘前務必先切斷氣壓源，防止誤觸導致鋼釘再次擊發！'
+                }
+            },
+            {
+                id: 'zone-5',
+                title: '5. 木箱拆解與鐵釘防刺傷',
+                color: '#D97706',
+                isoPos: { x: -220, y: 110 },
+                hazards: '拆箱帶釘木板隨地拋擲刺傷腳底、鐵釘劃傷手掌、木屑飛濺。',
+                sop: [
+                    { title: '拆箱即拔釘/敲平', desc: '拆解木箱板材後，立即將鐵釘拔除或打平，嚴禁露釘隨意拋擲。' },
+                    { title: '防穿刺鞋與防割手套', desc: '拆箱區人員必須穿著防穿刺鋼板鞋底安全鞋及 level 5 防割手套。' },
+                    { title: '廢木材釘朝下堆疊', desc: '廢棄木板集中放置於專用回收區，且一律釘朝下。' }
+                ],
+                quiz: {
+                    q: '拆解進口木箱後，發現板材上有外露的長鐵釘，正確處理方式是？',
+                    options: [
+                        '隨手扔在地上等清潔員處理',
+                        '釘朝上擺放提醒大家注意',
+                        '立即將鐵釘打平或拔除，並釘朝下整齊堆疊',
+                        '用腳踩一下即可'
+                    ],
+                    answer: 2,
+                    explain: '露釘是倉儲足部刺傷元兇，「拆箱即拔釘、板材釘朝下」是鐵律！'
+                }
+            },
+            {
+                id: 'zone-6',
+                title: '6. 化學品洩漏與急救應變',
+                color: '#9C27B0',
+                isoPos: { x: 0, y: -220 },
+                hazards: '腐蝕液體潑濺皮膚與眼睛、吸入有害氣體、洩漏擴散污染環境。',
+                sop: [
+                    { title: '洩漏應變 4 步驟', desc: '1.疏散人員 -> 2.穿戴防化 PPE -> 3.使用吸液棉圍堵 -> 4.通報主管。' },
+                    { title: '緊急洗眼沖洗 15 分鐘', desc: '若化学液潑濺眼睛，立即至緊急洗眼站連續沖洗 15 分鐘以上。' },
+                    { title: '參照 SDS 安全資料表', desc: '存放區隨時可查閱 SDS，明確吸收劑種類與急救措施。' }
+                ],
+                quiz: {
+                    q: '現場化學桶不幸翻倒洩漏時，第一時間應採取的正確應變順序為？',
+                    options: [
+                        '用拖把擦掉 -> 繼續工作',
+                        '疏散周遭人員 -> 穿戴抗化 PPE -> 用吸液棉圍堵 -> 通報主管',
+                        '用手去擦拭 -> 跑去洗手',
+                        '假裝沒看到離開現場'
+                    ],
+                    answer: 1,
+                    explain: '洩漏應變以人身安全為第一，先疏散與佩戴防護具，再進行吸液圍堵！'
+                }
+            }
+        ];
+
+        let clearedZones = new Set();
+        let timeMode = 'day';
+
+        // Sky & Theme Presets
+        const THEMES = {
+            day: { bg: '#0f172a', grid: 'rgba(255,255,255,0.05)', top: '#334155', side1: '#1e293b', side2: '#0f172a' },
+            sunset: { bg: '#1a0c1a', grid: 'rgba(255,150,100,0.06)', top: '#4a2c3a', side1: '#2e1824', side2: '#180a12' },
+            night: { bg: '#070a12', grid: 'rgba(0,229,255,0.08)', top: '#1e1b4b', side1: '#0f172a', side2: '#020617' }
+        };
+
+        // --- Isometric Canvas Engine ---
+        const canvas = document.getElementById('world-canvas');
+        const ctx = canvas.getContext('2d');
+        const pinsContainer = document.getElementById('pins-layer');
+
+        let cameraOffset = { x: 0, y: 0 };
+        let isDragging = false;
+        let startDrag = { x: 0, y: 0 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cameraOffset.x = canvas.width / 2;
+            cameraOffset.y = canvas.height / 2 + 30;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Drag to Pan Controls
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startDrag = { x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y };
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                cameraOffset.x = e.clientX - startDrag.x;
+                cameraOffset.y = e.clientY - startDrag.y;
+            }
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        // Workers & AGVs Dynamic State
+        let workers = ZONES.map((z, idx) => ({
+            id: idx,
+            currentZoneIdx: idx,
+            targetZoneIdx: (idx + 1) % ZONES.length,
+            progress: Math.random(),
+            state: 'WALKING', // WALKING or WORKING
+            workTimer: 0
+        }));
+
+        let agvs = [
+            { currentIdx: 0, targetIdx: 1, progress: 0 },
+            { currentIdx: 3, targetIdx: 4, progress: 0.5 }
+        ];
+
+        // Draw 3D Hexagonal Isometric Island
+        function drawHexIsland(cx, cy, radius, colorHex, isHovered, zoneData) {
+            const h = 50; // Thickness
+            const theme = THEMES[timeMode];
+
+            // Top Face Vertices
+            const topPoints = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 6;
+                topPoints.push({
+                    x: cx + radius * Math.cos(angle),
+                    y: cy + (radius * Math.sin(angle)) * 0.5
+                });
+            }
+
+            // Draw 3D Sides
+            ctx.fillStyle = theme.side1;
+            ctx.beginPath();
+            ctx.moveTo(topPoints[1].x, topPoints[1].y);
+            ctx.lineTo(topPoints[2].x, topPoints[2].y);
+            ctx.lineTo(topPoints[2].x, topPoints[2].y + h);
+            ctx.lineTo(topPoints[1].x, topPoints[1].y + h);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = theme.side2;
+            ctx.beginPath();
+            ctx.moveTo(topPoints[2].x, topPoints[2].y);
+            ctx.lineTo(topPoints[3].x, topPoints[3].y);
+            ctx.lineTo(topPoints[3].x, topPoints[3].y + h);
+            ctx.lineTo(topPoints[2].x, topPoints[2].y + h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Top Surface
+            ctx.fillStyle = isHovered ? '#38bdf8' : theme.top;
+            ctx.beginPath();
+            ctx.moveTo(topPoints[0].x, topPoints[0].y);
+            for (let i = 1; i < 6; i++) ctx.lineTo(topPoints[i].x, topPoints[i].y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = colorHex;
+            ctx.lineWidth = isHovered ? 4 : 2;
+            ctx.stroke();
+
+            // Render Props inside Islands
+            drawIslandProps(cx, cy, zoneData);
+        }
+
+        // Mini Props inside Islands
+        function drawIslandProps(cx, cy, zone) {
+            ctx.save();
+            if (zone.id === 'zone-1') {
+                // Forklift
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(cx - 15, cy - 15, 30, 20);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(cx - 18, cy - 8, 8, 12);
+            } else if (zone.id === 'zone-2') {
+                // Pallet Jack
+                ctx.fillStyle = '#0284c7';
+                ctx.fillRect(cx - 12, cy - 10, 24, 15);
+            } else if (zone.id === 'zone-3') {
+                // High Racks
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(cx - 20, cy - 25, 6, 35);
+                ctx.fillRect(cx + 14, cy - 25, 6, 35);
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(cx - 14, cy - 18, 28, 8);
+            } else if (zone.id === 'zone-4') {
+                // Workbench & Nailer
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(cx - 18, cy - 10, 36, 12);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(cx - 5, cy - 16, 10, 6);
+            } else if (zone.id === 'zone-5') {
+                // Wooden Box
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(cx - 14, cy - 14, 28, 20);
+            } else if (zone.id === 'zone-6') {
+                // Hazmat Spill
+                ctx.fillStyle = '#a855f7';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Draw Walking Worker Figure
+        function drawWorker(x, y, isWorking) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Legs Animation
+            const legSwing = isWorking ? 0 : Math.sin(Date.now() * 0.01) * 5;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-3, 0); ctx.lineTo(-3 + legSwing, 10);
+            ctx.moveTo(3, 0); ctx.lineTo(3 - legSwing, 10);
+            ctx.stroke();
+
+            // Vest Torso
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-6, -12, 12, 12);
+
+            // Safety Helmet
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.arc(0, -16, 6, Math.PI, 0);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Render Connecting Bridges
+        function drawBridges() {
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+            ctx.lineWidth = 6;
+            ctx.setLineDash([8, 8]);
+
+            for (let i = 0; i < ZONES.length; i++) {
+                const nextIdx = (i + 1) % ZONES.length;
+                const p1 = { x: cameraOffset.x + ZONES[i].isoPos.x, y: cameraOffset.y + ZONES[i].isoPos.y };
+                const p2 = { x: cameraOffset.x + ZONES[nextIdx].isoPos.x, y: cameraOffset.y + ZONES[nextIdx].isoPos.y };
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
+        // Main Render Loop
+        function render() {
+            const theme = THEMES[timeMode];
+            ctx.fillStyle = theme.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBridges();
+
+            // Render Islands
+            ZONES.forEach((zone) => {
+                const screenX = cameraOffset.x + zone.isoPos.x;
+                const screenY = cameraOffset.y + zone.isoPos.y;
+                drawHexIsland(screenX, screenY, 80, zone.color, false, zone);
+            });
+
+            // Update & Render Moving Workers
+            workers.forEach(w => {
+                const z1 = ZONES[w.currentZoneIdx];
+                const z2 = ZONES[w.targetZoneIdx];
+
+                if (w.state === 'WALKING') {
+                    w.progress += 0.003;
+                    if (w.progress >= 1) {
+                        w.progress = 0;
+                        w.state = 'WORKING';
+                        w.workTimer = 180; // 3 seconds
+                    }
+                } else {
+                    w.workTimer--;
+                    if (w.workTimer <= 0) {
+                        w.currentZoneIdx = w.targetZoneIdx;
+                        w.targetZoneIdx = (w.targetZoneIdx + 1) % ZONES.length;
+                        w.state = 'WALKING';
+                    }
+                }
+
+                const currX = cameraOffset.x + z1.isoPos.x + (z2.isoPos.x - z1.isoPos.x) * w.progress;
+                const currY = cameraOffset.y + z1.isoPos.y + (z2.isoPos.y - z1.isoPos.y) * w.progress;
+
+                drawWorker(currX, currY, w.state === 'WORKING');
+            });
+
+            updateOverlayPins();
+            requestAnimationFrame(render);
+        }
+
+        // Dynamic Overlay HTML Pins Syncing
+        function createOverlayPins() {
+            pinsContainer.innerHTML = '';
+            ZONES.forEach((zone) => {
+                const pin = document.createElement('div');
+                pin.className = 'island-pin pointer-events-auto';
+                pin.setAttribute('data-id', zone.id);
+                pin.onclick = () => openZoneDrawer(zone);
+
+                const isCleared = clearedZones.has(zone.id);
+                pin.innerHTML = `
+                    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2.5 shadow-2xl border border-white/20">
+                        <div class="w-3 h-3 rounded-full animate-ping" style="background-color: ${zone.color}"></div>
+                        <div class="text-left">
+                            <p class="text-xs font-black text-white whitespace-nowrap">${zone.title}</p>
+                            <span class="status-badge text-[10px] font-bold px-1.5 py-0.2 rounded ${isCleared ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'}">
+                                ${isCleared ? 'PASSED ✅' : '未考驗 🔴'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                pinsContainer.appendChild(pin);
+            });
+        }
+
+        function updateOverlayPins() {
+            const pins = pinsContainer.querySelectorAll('.island-pin');
+            pins.forEach(pin => {
+                const id = pin.getAttribute('data-id');
+                const zone = ZONES.find(z => z.id === id);
+                if (zone) {
+                    const screenX = cameraOffset.x + zone.isoPos.x;
+                    const screenY = cameraOffset.y + zone.isoPos.y - 40;
+                    pin.style.left = `${screenX}px`;
+                    pin.style.top = `${screenY}px`;
+                }
+            });
+        }
+
+        // Drawer Logic
+        const sideDrawer = document.getElementById('side-drawer');
+        function openZoneDrawer(zone) {
+            AudioFX.playClick();
+            document.getElementById('drawer-title').innerText = zone.title;
+            document.getElementById('drawer-hazards').innerText = zone.hazards;
+
+            const isCleared = clearedZones.has(zone.id);
+            const statusTag = document.getElementById('drawer-status-tag');
+            statusTag.className = isCleared ? "text-xs font-black text-emerald-400 flex items-center gap-1" : "text-xs font-bold text-amber-400 flex items-center gap-1";
+            statusTag.innerHTML = isCleared ? `<i class="fa-solid fa-circle-check"></i> 已通關認證` : `<i class="fa-regular fa-clock"></i> 尚待考驗認證`;
+
+            // SOP
+            const sopContainer = document.getElementById('drawer-sop-list');
+            sopContainer.innerHTML = '';
+            zone.sop.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-3 rounded-xl bg-slate-900/80 border border-slate-800";
+                div.innerHTML = `
+                    <p class="font-bold text-xs text-white flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-yellow-400 text-slate-950 text-[10px] flex items-center justify-center font-black">${idx + 1}</span>
+                        ${item.title}
+                    </p>
+                    <p class="text-[11px] text-slate-400 mt-1 pl-6 leading-relaxed">${item.desc}</p>
+                `;
+                sopContainer.appendChild(div);
+            });
+
+            // Quiz
+            document.getElementById('quiz-question').innerText = zone.quiz.q;
+            const optionsContainer = document.getElementById('quiz-options');
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.className = "hidden text-xs p-3 rounded-xl font-bold leading-relaxed";
+
+            optionsContainer.innerHTML = '';
+            zone.quiz.options.forEach((opt, optIdx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-slate-200 font-medium transition border border-slate-800 flex items-center justify-between";
+                btn.innerHTML = `<span>${opt}</span><i class="fa-regular fa-circle text-slate-600"></i>`;
+                btn.onclick = () => submitQuiz(zone, optIdx, feedback);
+                optionsContainer.appendChild(btn);
+            });
+
+            sideDrawer.classList.remove('translate-x-full');
+        }
+
+        function submitQuiz(zone, selectedIdx, feedbackEl) {
+            if (selectedIdx === zone.quiz.answer) {
+                AudioFX.playSuccess();
+                feedbackEl.className = "block text-xs p-3 rounded-xl font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+                feedbackEl.innerText = `🎉 答對了！ ${zone.quiz.explain}`;
+
+                clearedZones.add(zone.id);
+                updateProgress();
+                createOverlayPins();
+            } else {
+                AudioFX.playFail();
+                feedbackEl.className = "block text-xs p-3 rounded-xl font-bold bg-red-500/20 text-red-300 border border-red-500/30";
+                feedbackEl.innerText = `❌ 回答錯誤！請再研讀 SOP 防線指引後重試。`;
+            }
+        }
+
+        function updateProgress() {
+            const pct = Math.round((clearedZones.size / ZONES.length) * 100);
+            document.getElementById('global-progress-num').innerText = `${pct}%`;
+            document.getElementById('global-progress-bar').style.width = `${pct}%`;
+            if (clearedZones.size === ZONES.length) showToast('🏆 恭喜精通全庫區 6 大工安防線，可領取結業證書！');
+        }
+
+        document.getElementById('close-drawer-btn').addEventListener('click', () => sideDrawer.classList.add('translate-x-full'));
+
+        // Theme Switcher
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                AudioFX.playClick();
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('bg-yellow-400', 'text-slate-950'));
+                e.currentTarget.classList.add('bg-yellow-400', 'text-slate-950');
+                timeMode = e.currentTarget.getAttribute('data-time');
+            });
+        });
+
+        // Certificate Modal
+        const certModal = document.getElementById('cert-modal');
+        document.getElementById('open-cert-btn').addEventListener('click', () => {
+            AudioFX.playClick();
+            document.getElementById('cert-completion-status').innerText = `${clearedZones.size} / ${ZONES.length} 島嶼全數精通`;
+            certModal.classList.remove('hidden');
+            setTimeout(() => certModal.classList.remove('opacity-0'), 10);
+        });
+        document.getElementById('close-cert-modal').addEventListener('click', () => {
+            certModal.classList.add('opacity-0');
+            setTimeout(() => certModal.classList.add('hidden'), 300);
+        });
+        document.getElementById('print-cert-btn').addEventListener('click', () => window.print());
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'glass-panel px-4 py-3 rounded-2xl text-xs font-bold text-white border border-yellow-400/40 shadow-xl';
+            toast.innerHTML = `<i class="fa-solid fa-bell text-yellow-400 mr-2"></i>${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        createOverlayPins();
+        render();
+    </script>
+</body>
+</html>
